@@ -131,6 +131,12 @@ Ce script :
 ## 👨‍💻 Auteurs
 
 * Fallou Diouck
+
+
+## 🏅 Note obtenue / Grade Received
+
+> ✅ **17.25 / 20**  
+> (Travail complet, bien structuré, respect des consignes)
   
 
 ## 📝 Licence
