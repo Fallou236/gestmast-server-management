@@ -1,124 +1,58 @@
 #!/bin/bash
 
 # Chemins vers les scripts d'installation et de désinstallation
-install_script="~/documents/install.sh"
-uninstall_script="~/documents/uninstall.sh"
-
+install_script="$HOME/Documents/install.sh"
+uninstall_script="$HOME/Documents/uninstall.sh"
 
 nom_du_compte=$2
+
 #Fonction pour ajouter un compte
 ajouter_compte() {
-    # Demander le nom d'utilisateur
-    #read -p "Nom d'utilisateur : " nom_utilisateur
-    # Vérification si le compte existe déjà
     if id "$nom_du_compte" &>/dev/null; then
         echo "Ce nom d'utilisateur existe déjà."
         exit 1
     fi
-    
-    # Demander les informations sur l'étudiant
+
     read -p "Nom de l'étudiant : " nom_etudiant
     read -p "Prénom de l'étudiant : " prenom_etudiant
     read -p "Classe de l'étudiant (m1rs, m1gl, m2rs, m2gl, d1, d2, d3) : " classe
-    
-    # Création du chemin du répertoire personnel en fonction de la classe
+
     case "$classe" in
-   	m1rs) 
-   		sudo mkdir -p "/home/master/master1/$classe/$nom_du_compte"
-   	 	;;
-   	
-   	m1gl)  
-   		sudo mkdir -p "/home/master/master1/$classe/$nom_du_compte"
-   		;;
-   	m2gl)  
-   		sudo mkdir -p "/home/master/master2/$classe/$nom_du_compte"
-   		;;
-   	m2rs)  
-   		sudo mkdir -p "/home/master/master2/$classe/$nom_du_compte"
-   	 	;;
-   	d1|d2|d3)  
-   		sudo mkdir -p "/home/doctorat/$nom_du_compte"
-   	 	;;
+        m1rs|m1gl)
+            sudo mkdir -p "/home/master/master1/$classe/$nom_du_compte"
+            ;;
+        m2rs|m2gl)
+            sudo mkdir -p "/home/master/master2/$classe/$nom_du_compte"
+            ;;
+        d1|d2|d3)
+            sudo mkdir -p "/home/doctorat/$nom_du_compte"
+            ;;
+        *)
+            echo "Classe invalide."
+            exit 1
+            ;;
     esac
-    
-    
-    # Création du compte
-    case "$classe" in
-   	m1rs) 
-   		sudo useradd -d  /home/master/master1/$classe/$nom_du_compte -e "$(date -d '+18 month' +%Y-%m-%d)" $nom_du_compte
-   		sudo chmod 770 /home/master/master1/$classe/$nom_du_compte
-   		;;
-   	m1gl)  
-   		sudo useradd -d  /home/master/master1/$classe/$nom_du_compte -e "$(date -d '+18 month' +%Y-%m-%d)" $nom_du_compte
-   	 	sudo chmod 770 /home/master/master1/$classe/$nom_compte
-   	 	;;
-   	m2gl)  
-   		sudo useradd -d  /home/master/master2/$classe/$nom_du_compte -e "$(date -d '+18 month' +%Y-%m-%d)" $nom_du_compte
-   	 	sudo chmod 770 /home/master/master2/$classe/$nom_du_compte
-   	 	;;
-   	m2rs)  
-   		sudo useradd -d  /home/master/master2/$classe/$nom_du_compte -e "$(date -d '+18 month' +%Y-%m-%d)" $nom_du_compte
-   	 	sudo chmod 770 /home/master/master2/$classe/$nom_du_compte
-   	 	;;
-   	d1|d2|d3)  
-   		sudo useradd -d  /home/doctorat/$nom_du_compte -e "$(date -d '+3 years' +%Y-%m-%d)" $nom_du_compte
-   	 	sudo chmod 770 /home/doctorat/$nom_du_compte
-   	 	;;
-     esac
-     
-    
-    if [[ $classe == "d1" || $classe == "d2" || $classe == "d3" ]]; then
+
+    duree=$( [[ $classe == d* ]] && echo "+3 years" || echo "+18 month" )
+    home_dir=$( [[ $classe == d* ]] && echo "/home/doctorat/$nom_du_compte" || echo "/home/master/${classe:0:5}/$classe/$nom_du_compte" )
+
+    sudo useradd -d "$home_dir" -e "$(date -d "$duree" +%Y-%m-%d)" "$nom_du_compte"
+    sudo chmod 770 "$home_dir"
+
+    if [[ $classe == d* ]]; then
         sudo usermod -aG etudiant,doctorat "$nom_du_compte"
     else
-    	case $classe in
-		m1rs)
-		    sudo usermod -aG $classe,m1,master,rs $nom_du_compte
-		    ;;
-		m1gl)
-		    sudo usermod -aG $classe,m1,master,gl $nom_du_compte
-		    ;;
-		m2rs)
-		    sudo usermod -aG $classe,m2,master,rs $nom_du_compte
-		    ;;
-		m2gl)
-		    sudo usermod -aG $classe,m2,master,gl $nom_du_compte
-		    ;;
-    	esac
+        group_suffix=$( [[ $classe == *rs ]] && echo rs || echo gl )
+        level=${classe:0:2}
+        sudo usermod -aG "$classe,$level,master,$group_suffix,etudiant" "$nom_du_compte"
     fi
-    
-    
-    # Enregistrement des informations dans le fichier du répertoire caché
+
     echo "$nom_du_compte:$nom_etudiant:$prenom_etudiant:$classe:$(date +%Y-%m-%d)" | sudo tee -a /home/.gestmast/comptes.txt
-    
-    #Creation des raccourcis
-    case $classe in
-		m1rs)
-		    for groupe in etudiant master m1 m1rs rs ; do
-		    	sudo ln -s "/home/partages/$groupe" "/home/master/master1/$classe/$nom_du_compte"
-    		    done
-    		    ;;
-		m1gl)
-		    for groupe in etudiant  master m1 m1gl gl; do
-		    	sudo ln -s "/home/partages/$groupe" "/home/master/master1/$classe/$nom_du_compte"
-    		    done
-    		    ;;
-		m2rs)
-		    for groupe in etudiant master  m2 m2rs rs; do
-		    	sudo ln -s "/home/partages/$groupe" "/home/master/master2/$classe/$nom_du_compte"
-    		    done
-    		    ;;
-		m2gl)
-		    for groupe in etudiant master m2 m2gl gl; do
-		    	sudo ln -s "/home/partages/$groupe" "/home/master/master2/$classe/$nom_du_compte"
-    		    done
-    		    ;;
-    		d1|d2|d3)
-    		    for groupe in etudiant doctorat; do
-		    	sudo ln -s "/home/partages/$groupe" "/home/doctorat/$nom_du_compte"
-    		    done
-    		    ;;
-    	esac
-    
+
+    for groupe in etudiant master ${classe:0:2} "$classe" ${classe: -2}; do
+        [ -d "/home/partages/$groupe" ] && sudo ln -s "/home/partages/$groupe" "$home_dir/$groupe"
+    done
+
     echo "Le compte $nom_du_compte a été créé avec succès."
 }
 
@@ -505,50 +439,25 @@ afficher_aide() {
     echo "  --help                Afficher cette aide"
 }
 
-# Appel des fonctions (les fonctionalités de Gestmast)
+# ------------------------------ DISPATCHER ------------------------------
 case "$1" in
     -a | --add)
-        if [ $# -eq 2 ]; then
-            ajouter_compte
-        else
-            echo "Nombre d'arguments invalide pour l'option -a/--add"
-        fi
+        if [ $# -eq 2 ]; then ajouter_compte; else echo "Usage: gestmast -a NOM_COMPTE"; fi
         ;;
     -u | --update)
-        if [ $# -eq 1 ]; then
-            update
-        else
-            echo "Nombre d'arguments invalide pour l'option -u | --update"
-        fi
+        update
         ;;
     -m | --migrate)
-        if [ $# -eq 1 ]; then
-            migrer_etudiant
-        else
-            echo "Nombre d'arguments invalide"
-        fi
-        
+        migrer_etudiant
         ;;
     -L | --lock)
-        if [ $# -eq 1 ]; then
-            desactiver_compte
-        else
-            echo "Nombre d'arguments invalide"
-        fi
+        desactiver_compte
         ;;
     -U | --unlock)
-        if [ $# -eq 1 ]; then
-            reactiver_compte
-        else
-            echo "Nombre d'arguments invalide"
-        fi
+        reactiver_compte
         ;;
     -d | --delete)
-        if [ $# -eq 1 ]; then
-            supprimer_compte
-        else
-            echo "Nombre d'arguments invalide"
-        fi
+        supprimer_compte
         ;;
     -c | --check)
         verifier_configuration
